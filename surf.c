@@ -138,6 +138,11 @@ typedef struct {
 } UriParameters;
 
 typedef struct {
+	char *token;
+	char *uri;
+} SearchEngine;
+
+typedef struct {
 	char *regex;
 	char *file;
 	regex_t re;
@@ -219,7 +224,10 @@ static void webprocessterminated(WebKitWebView *v,
 static void closeview(WebKitWebView *v, Client *c);
 static void destroywin(GtkWidget* w, Client *c);
 
-/* Hotkeys */
+static void navigate(Client *c, const Arg *arg);
+static Client *newclient(void);
+static void newwindow(Client *c, const Arg *arg, gboolean noembed);
+static gchar *parseuri(const gchar *uri);
 static void pasteuri(GtkClipboard *clipboard, const char *text, gpointer d);
 static void reload(Client *c, const Arg *a);
 static void print(Client *c, const Arg *a);
@@ -659,7 +667,7 @@ updatetitle(Client *c)
 		gtk_window_set_title(GTK_WINDOW(c->win), title);
 		g_free(title);
 	} else {
-		gtk_window_set_title(GTK_WINDOW(c->win), name);
+		u = parseuri(uri);
 	}
 }
 
@@ -1067,6 +1075,21 @@ spawn(Client *c, const Arg *a)
 		perror(" failed");
 		exit(1);
 	}
+}
+
+gchar *
+parseuri(const gchar *uri) {
+	guint i;
+
+	for (i = 0; i < LENGTH(searchengines); i++) {
+		if (searchengines[i].token == NULL || searchengines[i].uri == NULL
+		    || *(uri + strlen(searchengines[i].token)) != ' ')
+			continue;
+		if (g_str_has_prefix(uri, searchengines[i].token))
+			return g_strdup_printf(searchengines[i].uri, uri + strlen(searchengines[i].token) + 1);
+	}
+	return g_strrstr(uri, "://") || g_str_has_prefix(uri, "about:") ? g_strdup(uri)
+	                 : g_strdup_printf("http://%s", uri);
 }
 
 void
